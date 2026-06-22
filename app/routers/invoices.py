@@ -31,10 +31,18 @@ def _require_draft(invoice: Invoice) -> None:
 
 
 @router.get("", response_model=list[InvoiceOut])
-def list_invoices(status: InvoiceStatus | None = None, db: Session = Depends(get_db)):
+def list_invoices(
+    status: InvoiceStatus | None = None,
+    customer: str | None = None,
+    db: Session = Depends(get_db),
+):
     query = select(Invoice).options(selectinload(Invoice.items)).order_by(Invoice.created_at.desc())
     if status:
         query = query.where(Invoice.status == status)
+    if customer:
+        # Case-insensitive partial match — accounting teams search by a fragment
+        # of the customer name far more often than they know the exact string.
+        query = query.where(Invoice.customer_name.ilike(f"%{customer}%"))
     return db.scalars(query).all()
 
 

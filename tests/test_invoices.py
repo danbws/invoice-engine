@@ -15,6 +15,19 @@ def make_draft(client, series="A", customer="Hanier Textiles"):
     return resp.json()
 
 
+def test_list_filters_by_customer_case_insensitive_partial(client):
+    make_draft(client, customer="Hanier Textiles")
+    make_draft(client, customer="Zion Fabrics")
+
+    hits = client.get("/api/invoices", params={"customer": "hanier"}).json()
+    assert [i["customer_name"] for i in hits] == ["Hanier Textiles"]
+
+    partial = client.get("/api/invoices", params={"customer": "fab"}).json()
+    assert [i["customer_name"] for i in partial] == ["Zion Fabrics"]
+
+    assert client.get("/api/invoices", params={"customer": "nobody"}).json() == []
+
+
 def test_draft_has_no_number_and_computes_total(client):
     draft = make_draft(client)
     assert draft["status"] == "draft"
