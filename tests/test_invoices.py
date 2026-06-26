@@ -28,6 +28,29 @@ def test_list_filters_by_customer_case_insensitive_partial(client):
     assert client.get("/api/invoices", params={"customer": "nobody"}).json() == []
 
 
+def test_summary_counts_only_issued_invoices(client):
+    # Two issued in series A, one issued in B, one cancelled, one left as draft.
+    a1 = make_draft(client, series="A")
+    a2 = make_draft(client, series="A")
+    b1 = make_draft(client, series="B")
+    cancelled = make_draft(client, series="A")
+    make_draft(client, series="A")  # stays draft
+
+    for d in (a1, a2, b1, cancelled):
+        client.post(f"/api/invoices/{d['id']}/issue")
+    client.post(f"/api/invoices/{cancelled['id']}/cancel", json={"reason": "Wrong data"})
+
+    summary = client.get("/api/invoices/summary").json()
+
+    # 3 issued counted (2 in A + 1 in B); cancelled and draft excluded
+    assert summary["total_invoices"] == 3
+    by_series = {r["series"]: r for r in summary["rows"]}
+    assert by_series["A"]["invoice_count"] == 2
+    assert by_series["B"]["invoice_count"] == 1
+    # Each invoice totals 120.5*18.90 + 450 = 2727.45
+    assert float(summary["total_amount"]) == round(3 * (120.5 * 18.90 + 450), 2)
+
+
 def test_draft_has_no_number_and_computes_total(client):
     draft = make_draft(client)
     assert draft["status"] == "draft"

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
@@ -7,7 +8,14 @@ from sqlalchemy.orm import Session, selectinload
 from ..database import get_db
 from ..models import Invoice, InvoiceItem, InvoiceStatus, NumberSequence
 from ..pdf import render_invoice_pdf
-from ..schemas import CancelIn, InvoiceCreate, InvoiceOut, InvoiceUpdate
+from ..schemas import (
+    CancelIn,
+    InvoiceCreate,
+    InvoiceOut,
+    InvoiceUpdate,
+    SummaryOut,
+    SummaryRow,
+)
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
@@ -44,6 +52,41 @@ def list_invoices(
         # of the customer name far more often than they know the exact string.
         query = query.where(Invoice.customer_name.ilike(f"%{customer}%"))
     return db.scalars(query).all()
+
+
+@router.get("/summary", response_model=SummaryOut)
+def revenue_summary(db: Session = Depends(get_db)):
+    """Billed revenue grouped by month and series, counting only ISSUED invoices.
+
+    Cancelled and draft documents have no fiscal value, so they are excluded.
+    Aggregation is done in Python rather than SQL so the report stays portable
+    across databases (month extraction differs between SQLite and PostgreSQL)
+    and reuses the same total logic as the rest of the app.
+    """
+    issued = db.scalars(
+        select(Invoice)
+        .options(selectinload(Invoice.items))
+        .where(Invoice.status == InvoiceStatus.ISSUED)
+    ).all()
+
+    buckets: dict[tuple[str, str], dict] = {}
+    for inv in issued:
+        period = inv.issued_at.strftime("%Y-%m") if inv.issued_at else "unknown"
+        bucket = buckets.setdefault(
+            (period, inv.series), {"invoice_count": 0, "total": Decimal("0")}
+        )
+        bucket["invoice_count"] += 1
+        bucket["total"] += inv.total
+
+    rows = [
+        SummaryRow(period=period, series=series, **data)
+        for (period, series), data in sorted(buckets.items())
+    ]
+    return SummaryOut(
+        rows=rows,
+        total_invoices=sum(r.invoice_count for r in rows),
+        total_amount=sum((r.total for r in rows), Decimal("0")),
+    )
 
 
 @router.post("", response_model=InvoiceOut, status_code=201)

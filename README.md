@@ -49,6 +49,7 @@ POST /api/invoices            → draft (editable, no number, no fiscal value)
 POST /api/invoices/{id}/issue → issued (gets next number in series, frozen)
 POST /api/invoices/{id}/cancel→ cancelled (keeps number, requires reason)
 GET  /api/invoices/{id}/pdf   → A4 PDF (issued/cancelled only; cancelled is stamped)
+GET  /api/invoices/summary    → billed revenue by month and series (issued only)
 ```
 
 See a generated [sample PDF](docs/sample-invoice.pdf).

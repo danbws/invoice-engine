@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+      body { background: #eef1f5; padding: 40px; }
+      .sheet { background: #fff; max-width: 760px; margin: 0 auto; padding: 44px 48px; box-shadow: 0 8px 30px rgba(15,23,42,.12); border-radius: 6px; }
+      .company { text-align: center; font-size: 22px; font-weight: 700; color: #1e293b; }
+      .taxid { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 4px; }
+      .inv { margin-top: 34px; font-size: 19px; font-weight: 700; color: #1e293b; }
+      .issued { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+      .cust { margin-top: 18px; font-size: 13px; color: #334155; }
+      .cust b { color: #1e293b; }
+      table { width: 100%; border-collapse: collapse; margin-top: 22px; font-size: 13px; }
+      thead th { background: #1e293b; color: #fff; text-align: left; padding: 9px 12px; font-weight: 600; font-size: 12px; }
+      thead th.r, tbody td.r { text-align: right; }
+      tbody td { padding: 9px 12px; border-bottom: 1px solid #eef1f5; color: #334155; }
+      tbody tr:nth-child(even) td { background: #fafbfc; }
+      .total-row td { font-weight: 700; color: #1e293b; border-bottom: none; padding-top: 14px; }
+      .notes { margin-top: 26px; font-size: 12px; color: #64748b; }
+      .badge { display: inline-block; margin-top: 22px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #4f46e5; background: #eef2ff; padding: 4px 10px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="company">Demo Manufacturing Co.</div>
+      <div class="taxid">Tax ID: 00.000.000/0001-00</div>
+      <div class="inv">INVOICE A-000001</div>
+      <div class="issued">Issued at: 2026-06-12 18:31 UTC</div>
+      <div class="cust"><b>Customer:</b> Hanier Textiles Ltda &nbsp;·&nbsp; <b>Tax ID:</b> 11.222.333/0001-44</div>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Description</th><th class="r">Qty</th><th class="r">Unit price</th><th class="r">Amount</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Cotton Jersey 160g — dyed, navy</td><td class="r">812.400</td><td class="r">18.90</td><td class="r">15,354.36</td></tr>
+          <tr><td>2</td><td>Polyamide Stretch 220g — finished</td><td class="r">240.000</td><td class="r">31.50</td><td class="r">7,560.00</td></tr>
+          <tr><td>3</td><td>Dyeing service — reactive process</td><td class="r">1.000</td><td class="r">1,450.00</td><td class="r">1,450.00</td></tr>
+          <tr class="total-row"><td colspan="4" class="r">Total</td><td class="r">24,364.36</td></tr>
+        </tbody>
+      </table>
+      <div class="notes"><b>Notes:</b> Payment due in 28 days. Batch 2026-T-0457.</div>
+      <span class="badge">SEQUENTIAL NUMBERING · IMMUTABLE · PDF OUTPUT</span>
+    </div>
+  </body>
+</html>

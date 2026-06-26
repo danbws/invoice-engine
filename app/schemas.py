@@ -53,3 +53,16 @@ class InvoiceOut(BaseModel):
     created_at: datetime
     items: list[ItemOut]
     total: Decimal
+
+
+class SummaryRow(BaseModel):
+    period: str  # "YYYY-MM"
+    series: str
+    invoice_count: int
+    total: Decimal
+
+
+class SummaryOut(BaseModel):
+    rows: list[SummaryRow]
+    total_invoices: int
+    total_amount: Decimal
