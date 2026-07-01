@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -42,6 +42,8 @@ def _require_draft(invoice: Invoice) -> None:
 def list_invoices(
     status: InvoiceStatus | None = None,
     customer: str | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     query = select(Invoice).options(selectinload(Invoice.items)).order_by(Invoice.created_at.desc())
@@ -51,6 +53,9 @@ def list_invoices(
         # Case-insensitive partial match — accounting teams search by a fragment
         # of the customer name far more often than they know the exact string.
         query = query.where(Invoice.customer_name.ilike(f"%{customer}%"))
+    # Page the results — an invoice list grows without bound, so never return
+    # everything at once. Ordering is stable (created_at desc) so paging is safe.
+    query = query.limit(limit).offset(offset)
     return db.scalars(query).all()
 
 

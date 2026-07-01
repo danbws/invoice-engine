@@ -28,6 +28,24 @@ def test_list_filters_by_customer_case_insensitive_partial(client):
     assert client.get("/api/invoices", params={"customer": "nobody"}).json() == []
 
 
+def test_list_is_paginated(client):
+    for i in range(5):
+        make_draft(client, customer=f"Client {i}")
+
+    first_page = client.get("/api/invoices", params={"limit": 2, "offset": 0}).json()
+    second_page = client.get("/api/invoices", params={"limit": 2, "offset": 2}).json()
+
+    assert len(first_page) == 2
+    assert len(second_page) == 2
+    # Pages don't overlap
+    first_ids = {i["id"] for i in first_page}
+    assert first_ids.isdisjoint(i["id"] for i in second_page)
+
+    # Guardrails: limit must be within 1..200
+    assert client.get("/api/invoices", params={"limit": 0}).status_code == 422
+    assert client.get("/api/invoices", params={"limit": 999}).status_code == 422
+
+
 def test_summary_counts_only_issued_invoices(client):
     # Two issued in series A, one issued in B, one cancelled, one left as draft.
     a1 = make_draft(client, series="A")
