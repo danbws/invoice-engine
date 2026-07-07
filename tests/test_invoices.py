@@ -132,3 +132,39 @@ def test_pdf_only_for_issued_documents(client):
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.content.startswith(b"%PDF")
+
+
+def test_summary_by_customer_counts_only_issued(client):
+    a1 = make_draft(client, customer="Hanier Textiles")
+    a2 = make_draft(client, customer="Hanier Textiles")
+    z1 = make_draft(client, customer="Zion Fabrics")
+    make_draft(client, customer="Zion Fabrics")  # stays draft, excluded
+
+    for d in (a1, a2, z1):
+        client.post(f"/api/invoices/{d['id']}/issue")
+
+    rows = client.get("/api/invoices/summary/by-customer").json()
+    by = {r["customer_name"]: r for r in rows}
+    assert by["Hanier Textiles"]["invoice_count"] == 2
+    assert by["Zion Fabrics"]["invoice_count"] == 1  # only the issued one counts
+    # Biggest customer by billed total comes first
+    assert rows[0]["customer_name"] == "Hanier Textiles"
+
+
+def test_export_csv_respects_filter_and_shows_numbers(client):
+    a = make_draft(client, customer="Hanier Textiles")
+    make_draft(client, customer="Zion Fabrics")
+    client.post(f"/api/invoices/{a['id']}/issue")
+
+    resp = client.get("/api/invoices/export.csv")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    header = resp.text.splitlines()[0]
+    assert header.startswith("id,number,status,customer_name")
+    assert "Hanier Textiles" in resp.text and "Zion Fabrics" in resp.text
+
+    # The customer filter carries into the export; issued invoice shows its number
+    filtered = client.get("/api/invoices/export.csv", params={"customer": "hanier"}).text
+    assert "Hanier Textiles" in filtered
+    assert "Zion Fabrics" not in filtered
+    assert "A-000001" in filtered

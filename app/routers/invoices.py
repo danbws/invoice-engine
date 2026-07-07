@@ -1,3 +1,5 @@
+import csv
+import io
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -10,6 +12,7 @@ from ..models import Invoice, InvoiceItem, InvoiceStatus, NumberSequence
 from ..pdf import render_invoice_pdf
 from ..schemas import (
     CancelIn,
+    CustomerSummaryRow,
     InvoiceCreate,
     InvoiceOut,
     InvoiceUpdate,
@@ -91,6 +94,77 @@ def revenue_summary(db: Session = Depends(get_db)):
         rows=rows,
         total_invoices=sum(r.invoice_count for r in rows),
         total_amount=sum((r.total for r in rows), Decimal("0")),
+    )
+
+
+@router.get("/summary/by-customer", response_model=list[CustomerSummaryRow])
+def revenue_by_customer(db: Session = Depends(get_db)):
+    """Billed revenue grouped by customer, counting only ISSUED invoices.
+
+    Complements /summary (grouped by month) — sales and collections want to
+    know who the biggest customers are, biggest first.
+    """
+    issued = db.scalars(
+        select(Invoice)
+        .options(selectinload(Invoice.items))
+        .where(Invoice.status == InvoiceStatus.ISSUED)
+    ).all()
+
+    buckets: dict[str, dict] = {}
+    for inv in issued:
+        bucket = buckets.setdefault(inv.customer_name, {"invoice_count": 0, "total": Decimal("0")})
+        bucket["invoice_count"] += 1
+        bucket["total"] += inv.total
+
+    rows = [CustomerSummaryRow(customer_name=name, **data) for name, data in buckets.items()]
+    rows.sort(key=lambda r: r.total, reverse=True)
+    return rows
+
+
+@router.get("/export.csv")
+def export_csv(
+    status: InvoiceStatus | None = None,
+    customer: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Export the (optionally filtered) invoice list as CSV.
+
+    Accounting teams live in spreadsheets — a CSV export lets them pull the
+    ledger straight into Excel. Same filters as the listing endpoint.
+    """
+    query = select(Invoice).options(selectinload(Invoice.items)).order_by(
+        Invoice.created_at.desc()
+    )
+    if status:
+        query = query.where(Invoice.status == status)
+    if customer:
+        query = query.where(Invoice.customer_name.ilike(f"%{customer}%"))
+    invoices = db.scalars(query).all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        ["id", "number", "status", "customer_name", "customer_tax_id",
+         "items", "total", "issued_at", "created_at"]
+    )
+    for inv in invoices:
+        writer.writerow(
+            [
+                inv.id,
+                inv.display_number or "",
+                inv.status.value,
+                inv.customer_name,
+                inv.customer_tax_id or "",
+                len(inv.items),
+                f"{inv.total:.2f}",
+                inv.issued_at.isoformat() if inv.issued_at else "",
+                inv.created_at.isoformat(),
+            ]
+        )
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="invoices.csv"'},
     )
 
 

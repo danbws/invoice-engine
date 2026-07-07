@@ -66,3 +66,9 @@ class SummaryOut(BaseModel):
     rows: list[SummaryRow]
     total_invoices: int
     total_amount: Decimal
+
+
+class CustomerSummaryRow(BaseModel):
+    customer_name: str
+    invoice_count: int
+    total: Decimal
