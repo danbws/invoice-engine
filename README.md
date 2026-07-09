@@ -1,9 +1,23 @@
-# 🧾 Invoice Engine
+# 🧾 DraftLine
 
-A small invoicing service with the rules that matter in the real world: **concurrency-safe
-sequential numbering**, **immutable issued documents**, **auditable cancellations**, and
-**PDF output** — inspired by the system I run in production, which issues 20,000+ electronic
-invoices a year for manufacturing companies in Brazil.
+**Send it once. It can't be changed. Get paid for it.**
+
+Audit-proof invoicing, retainage tracking, and payment collection for the
+**specialty construction subcontractors** who bill general contractors.
+
+**What it is:** a billing engine built around the rules that matter when a tax
+auditor or a GC's AP department shows up — **concurrency-safe sequential
+numbering**, **immutable issued documents**, **auditable cancellations**,
+**payment tracking with derived balance/status**, and **PDF output**.
+
+**Who it's for:** owner-operators of 1–15 person specialty subs (electrical,
+mechanical, drywall, concrete, HVAC…) doing $300k–$3M/year, dealing with
+progress billing, retainage held back, lien waivers, and slow net-60/90 AR.
+
+> **Status:** the invoicing **engine + payment tracking** are built and tested.
+> The SaaS shell — auth, multi-tenancy, Next.js UI, and Stripe billing — plus
+> retainage/progress-billing objects and lien-waiver PDFs are on the roadmap.
+> See [`docs/PRODUCT.md`](docs/PRODUCT.md) for the full product brief.
 
 [![CI](https://github.com/danbws/invoice-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/danbws/invoice-engine/actions/workflows/ci.yml)
 
@@ -47,7 +61,9 @@ pytest                          # tests run on in-memory SQLite, no setup needed
 ```
 POST /api/invoices            → draft (editable, no number, no fiscal value)
 POST /api/invoices/{id}/issue → issued (gets next number in series, frozen)
-POST /api/invoices/{id}/cancel→ cancelled (keeps number, requires reason)
+POST /api/invoices/{id}/cancel→ cancelled (issued only; keeps number, requires reason)
+POST /api/invoices/{id}/payments → record a payment (issued only; can't overpay)
+GET  /api/invoices/{id}/payments → list payments (newest first)
 GET  /api/invoices/{id}/pdf   → A4 PDF (issued/cancelled only; cancelled is stamped)
 GET  /api/invoices            → list (filter by status/customer, paginated: limit/offset)
 GET  /api/invoices/summary    → billed revenue by month and series (issued only)

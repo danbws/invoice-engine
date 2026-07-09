@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .models import InvoiceStatus
+from .models import InvoiceStatus, PaymentStatus
 
 
 class ItemIn(BaseModel):
@@ -37,6 +37,23 @@ class CancelIn(BaseModel):
     reason: str = Field(min_length=5, max_length=500)
 
 
+class PaymentIn(BaseModel):
+    amount: Decimal = Field(gt=0)
+    method: str = Field(min_length=1, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class PaymentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    invoice_id: int
+    amount: Decimal
+    method: str
+    paid_at: datetime
+    note: str | None
+
+
 class InvoiceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +70,9 @@ class InvoiceOut(BaseModel):
     created_at: datetime
     items: list[ItemOut]
     total: Decimal
+    amount_paid: Decimal
+    balance_due: Decimal
+    payment_status: PaymentStatus
 
 
 class SummaryRow(BaseModel):
