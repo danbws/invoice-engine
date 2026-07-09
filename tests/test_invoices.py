@@ -168,3 +168,115 @@ def test_export_csv_respects_filter_and_shows_numbers(client):
     assert "Hanier Textiles" in filtered
     assert "Zion Fabrics" not in filtered
     assert "A-000001" in filtered
+
+
+# --- payment tracking ---------------------------------------------------------
+
+INVOICE_TOTAL = 120.5 * 18.90 + 450.00  # 2727.45
+
+
+def _issued(client, **kwargs):
+    draft = make_draft(client, **kwargs)
+    client.post(f"/api/invoices/{draft['id']}/issue")
+    return draft
+
+
+def test_partial_payment_sets_partially_paid_and_balance(client):
+    inv = _issued(client)
+
+    resp = client.post(
+        f"/api/invoices/{inv['id']}/payments",
+        json={"amount": "1000.00", "method": "ACH", "note": "first draw"},
+    )
+    assert resp.status_code == 201
+
+    got = client.get(f"/api/invoices/{inv['id']}").json()
+    assert got["payment_status"] == "partially_paid"
+    assert float(got["amount_paid"]) == 1000.00
+    assert float(got["balance_due"]) == round(INVOICE_TOTAL - 1000.00, 2)
+
+
+def test_full_payment_sets_paid_and_zero_balance(client):
+    inv = _issued(client)
+
+    resp = client.post(
+        f"/api/invoices/{inv['id']}/payments",
+        json={"amount": f"{INVOICE_TOTAL:.2f}", "method": "check"},
+    )
+    assert resp.status_code == 201
+
+    got = client.get(f"/api/invoices/{inv['id']}").json()
+    assert got["payment_status"] == "paid"
+    assert float(got["balance_due"]) == 0.0
+    assert float(got["amount_paid"]) == round(INVOICE_TOTAL, 2)
+
+
+def test_overpayment_is_rejected(client):
+    inv = _issued(client)
+
+    resp = client.post(
+        f"/api/invoices/{inv['id']}/payments",
+        json={"amount": f"{INVOICE_TOTAL + 0.01:.2f}", "method": "ACH"},
+    )
+    assert resp.status_code == 422
+
+
+def test_non_positive_payment_is_rejected(client):
+    inv = _issued(client)
+
+    resp = client.post(
+        f"/api/invoices/{inv['id']}/payments",
+        json={"amount": "0", "method": "ACH"},
+    )
+    assert resp.status_code == 422
+
+
+def test_cannot_pay_a_draft(client):
+    draft = make_draft(client)
+
+    resp = client.post(
+        f"/api/invoices/{draft['id']}/payments",
+        json={"amount": "100.00", "method": "ACH"},
+    )
+    assert resp.status_code == 409
+
+
+def test_payments_are_listed_newest_first(client):
+    inv = _issued(client)
+
+    client.post(f"/api/invoices/{inv['id']}/payments", json={"amount": "500.00", "method": "ACH"})
+    client.post(f"/api/invoices/{inv['id']}/payments", json={"amount": "700.00", "method": "check"})
+
+    payments = client.get(f"/api/invoices/{inv['id']}/payments").json()
+    assert len(payments) == 2
+    # Newest first, and the balance reflects the running sum
+    got = client.get(f"/api/invoices/{inv['id']}").json()
+    assert float(got["amount_paid"]) == 1200.00
+    assert got["payment_status"] == "partially_paid"
+
+
+def test_cancelling_a_draft_is_rejected(client):
+    draft = make_draft(client)
+
+    resp = client.post(
+        f"/api/invoices/{draft['id']}/cancel", json={"reason": "Created by mistake"}
+    )
+    assert resp.status_code == 409
+
+    # A cancelled invoice (which is issued first) still cannot be re-cancelled
+    issued = _issued(client)
+    client.post(f"/api/invoices/{issued['id']}/cancel", json={"reason": "Wrong customer data"})
+    again = client.post(
+        f"/api/invoices/{issued['id']}/cancel", json={"reason": "Wrong customer data"}
+    )
+    assert again.status_code == 409
+
+
+def test_csv_export_neutralizes_formula_injection(client):
+    make_draft(client, customer="=cmd|'/c calc'!A1")
+
+    csv_text = client.get("/api/invoices/export.csv").text
+    # The dangerous cell must be prefixed so spreadsheets treat it as text
+    assert "'=cmd" in csv_text
+    # The raw formula must never appear at the start of a field
+    assert ",=cmd" not in csv_text

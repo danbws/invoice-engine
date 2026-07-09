@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..database import get_db
-from ..models import Invoice, InvoiceItem, InvoiceStatus, NumberSequence
+from ..models import Invoice, InvoiceItem, InvoiceStatus, NumberSequence, Payment
 from ..pdf import render_invoice_pdf
 from ..schemas import (
     CancelIn,
@@ -16,6 +16,8 @@ from ..schemas import (
     InvoiceCreate,
     InvoiceOut,
     InvoiceUpdate,
+    PaymentIn,
+    PaymentOut,
     SummaryOut,
     SummaryRow,
 )
@@ -25,11 +27,26 @@ router = APIRouter(prefix="/api/invoices", tags=["invoices"])
 
 def _load(db: Session, invoice_id: int) -> Invoice:
     invoice = db.scalar(
-        select(Invoice).options(selectinload(Invoice.items)).where(Invoice.id == invoice_id)
+        select(Invoice)
+        .options(selectinload(Invoice.items), selectinload(Invoice.payments))
+        .where(Invoice.id == invoice_id)
     )
     if not invoice:
         raise HTTPException(404, detail="Invoice not found")
     return invoice
+
+
+def _csv_safe(value):
+    """Neutralize CSV/spreadsheet formula injection.
+
+    A cell whose text starts with = + - @ (or a leading tab/CR that Excel trims
+    back to one of those) is treated as a formula by Excel/Sheets/LibreOffice.
+    A malicious customer_name like ``=cmd|'/c calc'!A1`` would then execute on a
+    reviewer's machine. Prefixing a single quote forces the cell to stay text.
+    """
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
 
 
 def _require_draft(invoice: Invoice) -> None:
@@ -49,7 +66,11 @@ def list_invoices(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    query = select(Invoice).options(selectinload(Invoice.items)).order_by(Invoice.created_at.desc())
+    query = (
+        select(Invoice)
+        .options(selectinload(Invoice.items), selectinload(Invoice.payments))
+        .order_by(Invoice.created_at.desc())
+    )
     if status:
         query = query.where(Invoice.status == status)
     if customer:
@@ -151,10 +172,10 @@ def export_csv(
         writer.writerow(
             [
                 inv.id,
-                inv.display_number or "",
+                _csv_safe(inv.display_number or ""),
                 inv.status.value,
-                inv.customer_name,
-                inv.customer_tax_id or "",
+                _csv_safe(inv.customer_name),
+                _csv_safe(inv.customer_tax_id or ""),
                 len(inv.items),
                 f"{inv.total:.2f}",
                 inv.issued_at.isoformat() if inv.issued_at else "",
@@ -236,12 +257,60 @@ def issue_invoice(invoice_id: int, db: Session = Depends(get_db)):
 def cancel_invoice(invoice_id: int, payload: CancelIn, db: Session = Depends(get_db)):
     """Cancelling keeps the number — fiscal sequences must not be reused."""
     invoice = _load(db, invoice_id)
-    if invoice.status == InvoiceStatus.CANCELLED:
-        raise HTTPException(409, detail="Invoice is already cancelled")
+    if invoice.status != InvoiceStatus.ISSUED:
+        # Only issued documents can be cancelled. A draft has no number and no
+        # fiscal value — cancelling it would leave a cancelled invoice with
+        # number=None, which is a nonsensical state. Delete/edit drafts instead.
+        raise HTTPException(
+            409,
+            detail=f"Invoice {invoice.display_number or invoice.id} is {invoice.status.value}; "
+            "only issued invoices can be cancelled",
+        )
     invoice.status = InvoiceStatus.CANCELLED
     invoice.cancel_reason = payload.reason
     db.commit()
     return _load(db, invoice_id)
+
+
+@router.post("/{invoice_id}/payments", response_model=PaymentOut, status_code=201)
+def record_payment(invoice_id: int, payload: PaymentIn, db: Session = Depends(get_db)):
+    """Record a payment against an ISSUED invoice.
+
+    Payments are append-only events — the invoice's ``amount_paid``,
+    ``balance_due`` and ``payment_status`` are always derived from their sum, so
+    the collection history stays auditable. You can't pay a draft (no fiscal
+    value yet) or a cancelled invoice, and you can't overpay the balance.
+    """
+    invoice = _load(db, invoice_id)
+    if invoice.status != InvoiceStatus.ISSUED:
+        raise HTTPException(
+            409,
+            detail=f"Invoice {invoice.display_number or invoice.id} is {invoice.status.value}; "
+            "only issued invoices can receive payments",
+        )
+    if payload.amount > invoice.balance_due:
+        raise HTTPException(
+            422,
+            detail=f"Payment {payload.amount} exceeds the balance due of {invoice.balance_due}",
+        )
+
+    payment = Payment(
+        invoice_id=invoice.id,
+        amount=payload.amount,
+        method=payload.method,
+        note=payload.note,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.get("/{invoice_id}/payments", response_model=list[PaymentOut])
+def list_payments(invoice_id: int, db: Session = Depends(get_db)):
+    """List payments recorded against an invoice, newest first."""
+    invoice = _load(db, invoice_id)
+    return invoice.payments
 
 
 @router.get("/{invoice_id}/pdf")

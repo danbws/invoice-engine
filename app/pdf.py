@@ -5,6 +5,7 @@ document number, customer block, items table, totals — without pretending to
 be a legally valid fiscal document.
 """
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -49,15 +50,17 @@ def render_invoice_pdf(invoice: Invoice) -> bytes:
             SMALL,
         ),
         Spacer(1, 4 * mm),
-        Paragraph(f"<b>Customer:</b> {invoice.customer_name}", styles["Normal"]),
+        Paragraph(f"<b>Customer:</b> {escape(invoice.customer_name)}", styles["Normal"]),
     ]
     if invoice.customer_tax_id:
-        story.append(Paragraph(f"<b>Customer tax ID:</b> {invoice.customer_tax_id}", styles["Normal"]))
+        story.append(
+            Paragraph(f"<b>Customer tax ID:</b> {escape(invoice.customer_tax_id)}", styles["Normal"])
+        )
     story.append(Spacer(1, 6 * mm))
 
     if invoice.status == InvoiceStatus.CANCELLED:
         story.append(Paragraph("CANCELLED", CANCELLED))
-        story.append(Paragraph(f"Reason: {invoice.cancel_reason}", styles["Normal"]))
+        story.append(Paragraph(f"Reason: {escape(invoice.cancel_reason or '')}", styles["Normal"]))
         story.append(Spacer(1, 6 * mm))
 
     rows = [["#", "Description", "Qty", "Unit price", "Amount"]]
@@ -92,7 +95,7 @@ def render_invoice_pdf(invoice: Invoice) -> bytes:
 
     if invoice.notes:
         story.append(Spacer(1, 6 * mm))
-        story.append(Paragraph(f"<b>Notes:</b> {invoice.notes}", styles["Normal"]))
+        story.append(Paragraph(f"<b>Notes:</b> {escape(invoice.notes)}", styles["Normal"]))
 
     doc.build(story)
     return buffer.getvalue()
