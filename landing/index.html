@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DraftLine · Audit-proof invoicing for construction subs</title>
+<meta name="description" content="Audit-proof invoicing and payment tracking for the specialty construction subcontractors who bill general contractors and wait on net-60." />
+<meta property="og:title" content="DraftLine · Send it once. It can't be changed. Get paid for it." />
+<meta property="og:description" content="Audit-proof invoicing, retainage, and payment collection for specialty construction subs." />
+<meta property="og:type" content="website" />
+<style>
+  :root {
+    --paper: #f6f5f1;
+    --paper-2: #efede7;
+    --card: #ffffff;
+    --ink: #16202b;
+    --ink-soft: #3c4a58;
+    --steel: #6b7785;
+    --line: #e2e0d8;
+    --line-strong: #d4d2c8;
+    /* single locked accent: blueprint navy */
+    --brand: #14496b;
+    --brand-700: #103a55;
+    --brand-tint: #eaf1f6;
+    --go: #1f7a4d;
+    --alert: #b23a3a;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --maxw: 1200px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: "SFMono-Regular", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 { line-height: 1.08; letter-spacing: -0.02em; font-weight: 680; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- nav ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 66px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.02em; font-size: 17px; }
+  .brand svg { display: block; }
+  .nav-links { display: flex; align-items: center; gap: 30px; }
+  .nav-links a.nl { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; }
+  .nav-links a.nl:hover { color: var(--ink); }
+  .nav-links a.nav-cta {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--brand); color: #fff; font-weight: 600; font-size: 14px;
+    padding: 9px 16px; border-radius: 999px; transition: transform .12s ease, background .2s ease;
+  }
+  .nav-links a.nav-cta:hover { background: var(--brand-700); color: #fff; }
+  .nav-cta:active { transform: translateY(1px); }
+  @media (max-width: 760px) { .nav-links a.nl { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { padding: clamp(48px, 8vw, 92px) 0 clamp(40px, 6vw, 72px); }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(32px, 5vw, 64px); align-items: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--brand); background: var(--brand-tint); padding: 5px 11px; border-radius: 999px;
+  }
+  .hero h1 { font-size: clamp(34px, 5vw, 56px); margin-top: 20px; max-width: 15ch; }
+  .hero h1 .u { color: var(--brand); }
+  .hero .sub { margin-top: 20px; font-size: clamp(16px, 1.5vw, 18.5px); color: var(--ink-soft); max-width: 46ch; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+    font-weight: 600; font-size: 15px; padding: 12px 22px; border-radius: 999px;
+    border: 1px solid transparent; cursor: pointer; transition: transform .12s ease, background .2s ease, border-color .2s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-primary:hover { background: var(--brand-700); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+  .btn-ghost:hover { border-color: var(--steel); background: #fff; }
+  .btn:active { transform: translateY(1px); }
+  .hero-meta { margin-top: 26px; display: flex; gap: 24px; flex-wrap: wrap; color: var(--steel); font-size: 13.5px; }
+  .hero-meta b { color: var(--ink); font-weight: 650; }
+
+  /* ---------- invoice document visual ---------- */
+  .doc-frame { position: relative; }
+  .doc-frame .tag {
+    position: absolute; top: -14px; right: 14px; z-index: 2;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--ink); color: #fff; font-size: 11.5px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; box-shadow: 0 8px 24px rgba(20,73,107,.18);
+  }
+  .doc {
+    background: var(--card); border: 1px solid var(--line-strong); border-radius: 14px;
+    box-shadow: 0 30px 60px -30px rgba(21,32,43,.28), 0 2px 4px rgba(21,32,43,.04);
+    padding: 26px 26px 22px; transform: rotate(-0.6deg);
+  }
+  .doc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .doc-firm { font-weight: 700; font-size: 15px; }
+  .doc-firm span { display: block; font-weight: 500; font-size: 12px; color: var(--steel); margin-top: 2px; }
+  .doc-no { text-align: right; }
+  .doc-no .k { font-size: 11px; color: var(--steel); text-transform: uppercase; letter-spacing: .06em; }
+  .doc-no .v { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .doc-issued { margin-top: 3px; font-size: 11px; color: var(--go); font-weight: 600; }
+  .doc-bill { margin-top: 16px; font-size: 12.5px; color: var(--ink-soft); }
+  .doc-bill b { color: var(--ink); }
+  table.doc-lines { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
+  table.doc-lines th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--steel); font-weight: 600; padding: 0 0 7px; border-bottom: 1px solid var(--line);
+  }
+  table.doc-lines th.r, table.doc-lines td.r { text-align: right; }
+  table.doc-lines td { padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink-soft); }
+  table.doc-lines td.desc { color: var(--ink); }
+  table.doc-lines tr.ret td { color: var(--alert); }
+  .doc-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; }
+  .doc-total .lab { font-size: 12px; color: var(--steel); text-transform: uppercase; letter-spacing: .06em; }
+  .doc-total .amt { font-size: 22px; font-weight: 720; letter-spacing: -0.02em; }
+  .doc-foot { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--steel); }
+  .lock { width: 14px; height: 14px; color: var(--brand); flex: none; }
+
+  /* ---------- section scaffolding ---------- */
+  section { padding: clamp(56px, 8vw, 96px) 0; }
+  .sec-head { max-width: 62ch; }
+  .sec-head h2 { font-size: clamp(26px, 3.4vw, 38px); }
+  .sec-head p { margin-top: 14px; color: var(--ink-soft); font-size: 17px; }
+  .kicker { color: var(--steel); font-size: 13px; font-weight: 600; letter-spacing: .04em; }
+
+  /* problem band */
+  .band { background: var(--ink); color: #fff; }
+  .band .big { font-size: clamp(24px, 3.6vw, 40px); font-weight: 660; letter-spacing: -0.02em; max-width: 20ch; }
+  .band .big .u { color: #7fb2d4; }
+  .band p { margin-top: 18px; color: #b8c2cc; font-size: 17px; max-width: 54ch; }
+
+  /* the three properties — wide rows, not equal cards */
+  .props { display: grid; gap: 18px; margin-top: 44px; }
+  .prop {
+    display: grid; grid-template-columns: 56px 1fr auto; gap: 22px; align-items: start;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 26px; transition: border-color .2s ease, transform .2s ease;
+  }
+  .prop:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+  .prop .ic { width: 44px; height: 44px; border-radius: 11px; background: var(--brand-tint); color: var(--brand); display: grid; place-items: center; }
+  .prop h3 { font-size: 20px; }
+  .prop p { margin-top: 8px; color: var(--ink-soft); font-size: 15.5px; max-width: 60ch; }
+  .prop .chip { align-self: center; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); background: var(--paper-2); border: 1px solid var(--line); padding: 6px 11px; border-radius: 8px; white-space: nowrap; }
+  @media (max-width: 720px) { .prop { grid-template-columns: 44px 1fr; } .prop .chip { display: none; } }
+
+  /* lifecycle flow */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 44px; }
+  .step { position: relative; padding: 24px 20px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); }
+  .step .v { font-family: var(--mono); font-size: 12px; color: var(--brand); font-weight: 600; }
+  .step h3 { font-size: 18px; margin-top: 12px; }
+  .step p { margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
+  .step:not(:last-child)::after {
+    content: ""; position: absolute; top: 50%; right: -9px; width: 14px; height: 14px;
+    border-top: 2px solid var(--line-strong); border-right: 2px solid var(--line-strong);
+    transform: translateY(-50%) rotate(45deg); z-index: 1;
+  }
+  @media (max-width: 860px) { .flow { grid-template-columns: 1fr 1fr; } .step:not(:last-child)::after { display: none; } }
+  @media (max-width: 480px) { .flow { grid-template-columns: 1fr; } }
+
+  /* who it's for */
+  .who { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 5vw, 56px); align-items: center; }
+  .trades { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .trade { font-size: 14px; font-weight: 550; color: var(--ink); background: var(--card); border: 1px solid var(--line-strong); padding: 9px 16px; border-radius: 999px; }
+  .profile { background: var(--brand-tint); border: 1px solid #d3e2ec; border-radius: var(--radius); padding: 28px; }
+  .profile dl { margin: 0; display: grid; gap: 16px; }
+  .profile .row { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #d3e2ec; padding-bottom: 14px; }
+  .profile .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .profile dt { color: var(--ink-soft); font-size: 14px; }
+  .profile dd { margin: 0; font-weight: 650; text-align: right; }
+  @media (max-width: 720px) { .who { grid-template-columns: 1fr; } }
+
+  /* honest status */
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 40px; }
+  .status-col { border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; background: var(--card); }
+  .status-col.built { border-color: #bfe0cc; background: #f2f9f5; }
+  .status-col h3 { font-size: 16px; display: flex; align-items: center; gap: 9px; }
+  .status-col ul { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+  .status-col li { display: flex; gap: 10px; font-size: 14.5px; color: var(--ink-soft); }
+  .status-col li svg { flex: none; margin-top: 3px; }
+  @media (max-width: 640px) { .status-grid { grid-template-columns: 1fr; } }
+
+  /* CTA band */
+  .cta-band { background: var(--brand); color: #fff; border-radius: 20px; padding: clamp(40px, 6vw, 64px); text-align: center; }
+  .cta-band h2 { font-size: clamp(26px, 3.6vw, 40px); max-width: 18ch; margin: 0 auto; }
+  .cta-band p { margin: 16px auto 0; color: #cfe0ec; max-width: 46ch; font-size: 17px; }
+  form.wait { display: flex; gap: 10px; justify-content: center; margin: 30px auto 0; max-width: 440px; }
+  form.wait input {
+    flex: 1; min-width: 0; font-size: 15px; padding: 13px 16px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.12); color: #fff;
+  }
+  form.wait input::placeholder { color: #cfe0ec; }
+  form.wait input:focus { outline: 2px solid #fff; outline-offset: 1px; }
+  form.wait button { background: #fff; color: var(--brand); border: 0; }
+  form.wait button:hover { background: #eef4f8; }
+  .cta-fine { margin-top: 16px; font-size: 13px; color: #b9cede; }
+  @media (max-width: 520px) { form.wait { flex-direction: column; border-radius: 16px; } form.wait input, form.wait button { width: 100%; } }
+
+  /* footer */
+  footer.ft { border-top: 1px solid var(--line); padding: 40px 0; }
+  .ft-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; color: var(--steel); font-size: 14px; }
+  .ft-inner a { color: var(--ink-soft); font-weight: 500; }
+  .ft-inner a:hover { color: var(--ink); }
+  .ft-links { display: flex; gap: 22px; flex-wrap: wrap; }
+
+  /* reveal motion */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="DraftLine home">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="2.5" width="18" height="19" rx="3" fill="#14496b"/>
+        <path d="M7 7.5h10M7 11h10M7 14.5h6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="16.6" cy="16.4" r="3.1" fill="#14496b" stroke="#fff" stroke-width="1.4"/>
+        <path d="M15.3 16.4l1 1 1.6-1.9" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      DraftLine
+    </a>
+    <nav class="nav-links">
+      <a class="nl" href="#how">How it works</a>
+      <a class="nl" href="#who">Who it's for</a>
+      <a class="nl" href="#status">What's built</a>
+      <a class="nav-cta" href="#access">Get early access</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">For specialty construction subs</span>
+        <h1>Send it once. It <span class="u">can't be changed.</span> Get paid for it.</h1>
+        <p class="sub">Audit-proof invoicing and payment tracking for the specialty subs who bill general contractors and wait out net-60.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#access">Get early access</a>
+          <a class="btn btn-ghost" href="#how">See how it works</a>
+        </div>
+      </div>
+
+      <div class="doc-frame reveal">
+        <span class="tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 10V8a6 6 0 1 1 12 0v2" stroke="#fff" stroke-width="2"/><rect x="4" y="10" width="16" height="10" rx="2" fill="#fff"/></svg>
+          Issued &amp; locked
+        </span>
+        <div class="doc" role="img" aria-label="Sample issued invoice from an electrical subcontractor to a general contractor, numbered E-000148, with a retainage line and a locked status.">
+          <div class="doc-top">
+            <div class="doc-firm">Voltaic Electric LLC<span>License EC-0041192 · Austin, TX</span></div>
+            <div class="doc-no">
+              <div class="k">Invoice</div>
+              <div class="v mono">E-000148</div>
+              <div class="doc-issued">● Issued 2026-07-14</div>
+            </div>
+          </div>
+          <div class="doc-bill">Bill to <b>Meridian General Contractors</b> · Job 21-C Riverside Medical</div>
+          <table class="doc-lines">
+            <thead>
+              <tr><th>Description</th><th class="r">Qty</th><th class="r">Amount</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="desc">Rough-in wiring, Building C Fl. 3</td><td class="r tnum">1</td><td class="r tnum">12,480.00</td></tr>
+              <tr><td class="desc">Panel + breaker install, 200A</td><td class="r tnum">2</td><td class="r tnum">5,940.00</td></tr>
+              <tr class="ret"><td class="desc">Less: retainage held (10%)</td><td class="r"></td><td class="r tnum">-1,842.00</td></tr>
+            </tbody>
+          </table>
+          <div class="doc-total">
+            <span class="lab">Net due (net-60)</span>
+            <span class="amt tnum">$16,578.00</span>
+          </div>
+          <div class="doc-foot">
+            <svg class="lock" viewBox="0 0 24 24" fill="none"><path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.8"/><rect x="5" y="10" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
+            Number claimed under row lock. Any edit after issue returns 409.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM BAND -->
+  <section class="band">
+    <div class="wrap reveal">
+      <p class="kicker" style="color:#7fb2d4">The part nobody warns you about</p>
+      <p class="big" style="margin-top:14px">Invoicing looks like CRUD until a <span class="u">tax auditor</span> or a GC's AP department shows up.</p>
+      <p>Then three things stop being optional: numbers that never skip or repeat, documents that can't be quietly edited after they go out, and cancellations that leave a trail instead of a hole. Spreadsheets fail all three.</p>
+    </div>
+  </section>
+
+  <!-- THREE PROPERTIES -->
+  <section id="why">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2>Built around the three properties an audit actually checks.</h2>
+        <p>Not features bolted on later. They are the core of the engine, and every one is covered by tests.</p>
+      </div>
+      <div class="props">
+        <div class="prop reveal">
+          <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+          <div>
+            <h3>Sequential numbers, no duplicates, even under load</h3>
+            <p>The next number is claimed inside the issuing transaction with a row lock on the series counter. Two people hitting issue at the same second serialize instead of racing to the same number.</p>
+          </div>
+          <span class="chip">SELECT … FOR UPDATE</span>
+        </div>
+        <div class="prop reveal">
+          <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.8"/><rect x="5" y="10" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.8"/></svg></span>
+          <div>
+            <h3>Issued documents are frozen</h3>
+            <p>Drafts edit freely. The moment an invoice gets its number, every mutation is refused. What the GC received is what your records show, byte for byte.</p>
+          </div>
+          <span class="chip">409 Conflict</span>
+        </div>
+        <div class="prop reveal">
+          <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 4v8l5 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg></span>
+          <div>
+            <h3>Cancellation is an event, not a delete</h3>
+            <p>A cancelled invoice keeps its number, records a required reason, and the sequence continues from where it left off. Fiscal numbers are never reused or erased.</p>
+          </div>
+          <span class="chip">keeps its number</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how" style="background:var(--paper-2)">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2>From draft to paid, one clean line.</h2>
+      </div>
+      <div class="flow">
+        <div class="step reveal"><div class="v">draft</div><h3>Draft</h3><p>Build it, edit it, no number and no fiscal weight yet.</p></div>
+        <div class="step reveal"><div class="v">issue</div><h3>Issue</h3><p>It takes the next number in its series and freezes. A4 PDF ready.</p></div>
+        <div class="step reveal"><div class="v">collect</div><h3>Collect</h3><p>Record each payment. Balance and status derive themselves. You can't overpay.</p></div>
+        <div class="step reveal"><div class="v">report</div><h3>Report</h3><p>Billed revenue by month and series, and where your AR is sitting.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHO IT'S FOR -->
+  <section id="who">
+    <div class="wrap who">
+      <div class="reveal">
+        <p class="kicker">Who it's for</p>
+        <h2 style="font-size:clamp(26px,3.4vw,38px); margin-top:12px">The owner-operator who is also the AR department.</h2>
+        <p style="margin-top:14px; color:var(--ink-soft); font-size:17px; max-width:48ch">Specialty subs doing progress billing, holding retainage, chasing lien waivers, and floating payroll while AR sits on net-60 or net-90.</p>
+        <div class="trades">
+          <span class="trade">Electrical</span>
+          <span class="trade">Mechanical</span>
+          <span class="trade">Drywall</span>
+          <span class="trade">Concrete</span>
+          <span class="trade">HVAC</span>
+        </div>
+      </div>
+      <div class="profile reveal">
+        <dl>
+          <div class="row"><dt>Crew size</dt><dd>1 to 15 people</dd></div>
+          <div class="row"><dt>Annual volume</dt><dd class="tnum">$300k to $3M</dd></div>
+          <div class="row"><dt>Bills</dt><dd>General contractors</dd></div>
+          <div class="row"><dt>Waits on</dt><dd>Net-60 / Net-90 AR</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- HONEST STATUS -->
+  <section id="status" style="background:var(--paper-2)">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2>Where it stands, honestly.</h2>
+        <p>The engine that is hard to get right is done. The shell around it is being built in the open.</p>
+      </div>
+      <div class="status-grid">
+        <div class="status-col built reveal">
+          <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#1f7a4d"/><path d="M8 12.5l2.5 2.5 5-5.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Built and tested</h3>
+          <ul>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4 4 10-10.5" stroke="#1f7a4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Concurrency-safe sequential numbering</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4 4 10-10.5" stroke="#1f7a4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Immutable issued documents</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4 4 10-10.5" stroke="#1f7a4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Auditable cancellations with reason</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4 4 10-10.5" stroke="#1f7a4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Payment tracking, derived balance and status</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4 4 10-10.5" stroke="#1f7a4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> A4 PDF output, revenue summary</li>
+          </ul>
+        </div>
+        <div class="status-col reveal">
+          <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#6b7785" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="#6b7785" stroke-width="1.8" stroke-linecap="round"/></svg> On the roadmap</h3>
+          <ul>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#6b7785" stroke-width="1.8" stroke-linecap="round"/></svg> Accounts, multi-tenancy, and the web app</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#6b7785" stroke-width="1.8" stroke-linecap="round"/></svg> Retainage and progress-billing objects</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#6b7785" stroke-width="1.8" stroke-linecap="round"/></svg> Lien-waiver PDFs</li>
+            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#6b7785" stroke-width="1.8" stroke-linecap="round"/></svg> Stripe billing</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section id="access">
+    <div class="wrap">
+      <div class="cta-band reveal">
+        <h2>Get on the early access list.</h2>
+        <p>Building this with a handful of real subs first. If that is you, put your email in and I will reach out personally.</p>
+        <form class="wait" onsubmit="return draftlineWaitlist(event)">
+          <input type="email" name="email" required placeholder="you@yourcompany.com" aria-label="Your work email" />
+          <button class="btn" type="submit">Request access</button>
+        </form>
+        <p class="cta-fine">No spam, no drip sequence. One human, one reply.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="ft">
+  <div class="wrap ft-inner">
+    <span>DraftLine · built by Daniel Bichof</span>
+    <nav class="ft-links">
+      <a href="https://github.com/danbws/invoice-engine">GitHub</a>
+      <a href="https://www.linkedin.com/in/danbichof">LinkedIn</a>
+      <a href="https://github.com/danbws/factory-flow">factory-flow</a>
+      <a href="mailto:daniel@websys.ind.br">Email</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal — intersection observer, honors reduced-motion (CSS already
+  // shows everything under the reduce media query, so this only enhances).
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var els = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach(function (e) { e.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.14, rootMargin: "0px 0px -8% 0px" });
+    els.forEach(function (e) { io.observe(e); });
+  })();
+
+  // Waitlist — no backend yet, so this composes an honest mailto instead of
+  // faking a submission. Replace with a real endpoint (Formspree/API) later.
+  function draftlineWaitlist(e) {
+    e.preventDefault();
+    var email = e.target.email.value.trim();
+    if (!email) return false;
+    var subject = encodeURIComponent("DraftLine early access");
+    var body = encodeURIComponent("Hi Daniel,\n\nI'd like early access to DraftLine.\n\nMy email: " + email + "\nTrade / company: \nAnnual volume: \n\nThanks.");
+    window.location.href = "mailto:daniel@websys.ind.br?subject=" + subject + "&body=" + body;
+    return false;
+  }
+</script>
+</body>
+</html>
